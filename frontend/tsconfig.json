@@ -9,6 +9,8 @@
     }
   ],
   "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["vite/client", "w3c-file-system-access"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]

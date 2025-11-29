@@ -1,5 +1,8 @@
 import express from "express";
 import path from "path";
+import cors from "cors";
+
+
 import { scanDirectory } from "./fileScanner.js";
 
 const app = express();
@@ -11,9 +14,10 @@ function validateAbsolutePath(input: string): string {
   }
   return input;
 }
-
+app.use(cors());
 app.get("/api/scan", async (req, res) => {
   try {
+    console.log("scan called, query:", req.query);
     const rawPath = req.query.path as string;
     const root = validateAbsolutePath(rawPath);
 

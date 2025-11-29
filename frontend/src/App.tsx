@@ -1,78 +1,63 @@
 import { useState } from "react";
-import FileTree from "./FileTree";
-import type { FileNode } from "./types";
-import { generateRcloneExcludeFile } from "./generatePatterns";
+import { streamScan, type FileNode } from "./api/stream";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-function App() {
-  const [tree, setTree] = useState<FileNode | null>(null);
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
-  const [systemPath, setSystemPath] = useState("");
+export default function App() {
+  const [path, setPath] = useState("/mnt/media/TV");
+  const [nodes, setNodes] = useState<FileNode[]>([]);
+  const [scanning, setScanning] = useState(false);
 
-  async function handleScan() {
-    if (!systemPath.startsWith("/")) {
-      alert("You must enter a valid absolute path to send to backend.");
-      return;
-    }
+  const startScan = () => {
+    setNodes([]);
+    setScanning(true);
 
-    const res = await fetch(`http://localhost:4000/api/scan?path=${encodeURIComponent(systemPath)}`);
-    const data = await res.json();
-
-    if (data.error) {
-      alert("Backend error: " + data.error);
-      return;
-    }
-
-    setTree(data);
-  }
-
-  function toggle(path: string) {
-    setChecked((prev) => ({
-      ...prev,
-      [path]: !prev[path]
-    }));
-  }
-
-  function downloadExcludeFile() {
-    const text = generateRcloneExcludeFile(checked);
-    const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "exclude.txt";
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+    streamScan(
+      path,
+      (node) => {
+        setNodes((prev) => [...prev, node]); // incremental append
+      },
+      () => {
+        setScanning(false);
+      }
+    );
+  };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <h1>rclone Excluder UI</h1>
+    <div className="container mx-auto p-6 space-y-6">
+      <h1 className="text-2xl font-semibold">Rclone Excluder — Streaming Mode</h1>
 
-      <p>Enter the absolute path of your media directory:</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Scan server filesystem (Streaming)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Input
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+          />
 
-      <input
-        type="text"
-        placeholder="/mnt/media/TV"
-        value={systemPath}
-        onChange={(e) => setSystemPath(e.target.value)}
-        style={{ width: "400px" }}
-      />
+          <Button onClick={startScan} disabled={scanning}>
+            {scanning ? "Scanning…" : "Stream Scan"}
+          </Button>
+        </CardContent>
+      </Card>
 
-      <br /><br />
-
-      <button onClick={handleScan}>Scan Directory</button>
-
-      <hr />
-
-      {tree && (
-        <>
-          <FileTree node={tree} checked={checked} onToggle={toggle} />
-          <button onClick={downloadExcludeFile} style={{ marginTop: "2rem" }}>
-            Download Exclude File
-          </button>
-        </>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Streaming Results</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-[500px] overflow-auto text-sm font-mono space-y-1">
+            {nodes.map((n) => (
+              <div key={n.path}>
+                {n.isDir ? "📁" : "📄"} {n.path}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
-
-export default App;
